@@ -1,6 +1,8 @@
 # --------- pytorch --------- #
-torch>=2.0.0
-torchvision>=0.15.0
+# recommend install torch manually
+# conda install pytorch==2.2.0 torchvision==0.17.0 torchaudio==2.2.0 pytorch-cuda=12.1 -c pytorch -c nvidia
+# torch>=2.2.0
+# torchaudio>=2.2.0
 lightning>=2.0.0
 torchmetrics>=0.11.4
 
@@ -21,4 +23,11 @@ rootutils       # standardizing the project root setup
 pre-commit      # hooks for applying linters on commit
 rich            # beautiful text formatting in terminal
 pytest          # tests
-# sh            # for running bash commands in some tests (linux/macos only)
+einops
+descript-audiotools
+--pre --extra-index-url https://fair.pkg.atmeta.com/fairseq2/whl/nightly/pt2.2.0/cu121
+fairseq2==0.3.0.dev202402202355+cu121
+git+https://github.com/seastar105/seamless_communication.git#egg=seamless_communication
+pandas
+torchdiffeq
+transformers
