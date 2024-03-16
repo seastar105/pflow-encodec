@@ -188,6 +188,124 @@ class MultiHeadAttention(nn.Module):
         return self.to_out(attn_output)
 
 
+# code from https://github.com/facebookresearch/fairseq2/blob/main/src/fairseq2/models/wav2vec2/position_encoder.py
+class Wav2Vec2PositionEncoderLayer(nn.Module):
+    def __init__(
+        self,
+        dim: int,
+        kernel_size: int,
+        groups: int,
+    ) -> None:
+        super().__init__()
+
+        self.conv = nn.Conv1d(
+            dim,
+            dim,
+            kernel_size,
+            padding="same",
+            groups=groups,
+        )
+
+        self.layer_norm = nn.LayerNorm(dim)
+        self.activation = nn.GELU()
+
+    def forward(self, encodings: torch.Tensor) -> torch.Tensor:
+        encodings = self.conv(encodings)
+
+        encodings = encodings.transpose(1, 2)  # (B, D, T) -> (B, T, D)
+        encodings = self.layer_norm(encodings)
+        encodings = encodings.transpose(1, 2)  # (B, T, D) -> (B, D, T)
+
+        encodings = self.activation(encodings)
+        return
+
+
+class Wav2Vec2StackedPositionEncoder(nn.Module):
+    def __init__(
+        self,
+        depth: int,
+        dim: int,
+        kernel_size: int,
+        groups: int,
+    ) -> None:
+        super().__init__()
+
+        k = max(3, kernel_size // depth)
+
+        self.layers = nn.Sequential()
+
+        for _ in range(depth):
+            layer = Wav2Vec2PositionEncoderLayer(
+                dim,
+                k,
+                groups,
+            )
+
+            self.layers.append(layer)
+
+    def forward(self, x: torch.Tensor, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
+        if exists(mask):
+            mask = mask[..., None]
+            x = x.masked_fill(~mask, 0.0)
+
+        x = x.transpose(1, 2)  # (B, T, D) -> (B, D, T)
+        x = self.layers(x)
+        x = x.transpose(1, 2)  # (B, D, T) -> (B, T, D)
+
+        if exists(mask):
+            x = x.masked_fill(~mask, 0.0)
+
+        return x
+
+
+class AlibiPositionalBias(nn.Module):
+    def __init__(self, heads: int):
+        super().__init__()
+        self.heads = heads
+
+        slopes = torch.Tensor(self._get_slopes(heads))
+        slopes = rearrange(slopes, "h -> h 1 1")
+        self.register_buffer("slopes", slopes, persistent=False)
+        self.register_buffer("bias", None, persistent=False)
+
+    def get_bias(self, seq_len: int):
+        i_arange = torch.arange(seq_len, device=self.device)
+        j_arange = torch.arange(seq_len, device=self.device)
+        bias = -torch.abs(rearrange(j_arange, "j -> 1 1 j") - rearrange(i_arange, "i -> 1 i 1"))
+        return bias
+
+    @staticmethod
+    def _get_slopes(heads):
+        def get_slopes_power_of_2(n):
+            start = 2 ** (-(2 ** -(math.log2(n) - 3)))
+            ratio = start
+            return [start * ratio**i for i in range(n)]
+
+        if math.log2(heads).is_integer():
+            return get_slopes_power_of_2(heads)
+
+        closest_power_of_2 = 2 ** math.floor(math.log2(heads))
+        return (
+            get_slopes_power_of_2(closest_power_of_2)
+            + get_slopes_power_of_2(2 * closest_power_of_2)[0::2][: heads - closest_power_of_2]
+        )
+
+    @property
+    def device(self):
+        return next(self.buffers()).device
+
+    def forward(self, seq_len: int):
+        if exists(self.bias) and self.bias.shape[-1]:
+            return self.bias[..., -seq_len:, -seq_len:]
+
+        bias = self.get_bias(seq_len)
+        bias = bias * self.slopes
+
+        self.register_buffer("bias", bias, persistent=False)
+
+        return self.bias
+
+
 class Transformer(nn.Module):
     def __init__(
         self,
