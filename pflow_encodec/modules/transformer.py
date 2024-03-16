@@ -105,20 +105,23 @@ class MultiHeadAttention(nn.Module):
         dim: int,
         dim_head: int,
         heads: int,
+        dim_context: Optional[int] = None,
         scale: Optional[float] = None,
         dropout: float = 0.0,
         processor: Literal["naive", "sdpa", "flash"] = "naive",
     ):
         super().__init__()
+        self.dim = dim
         self.dim_head = dim_head
+        self.dim_context = dim_context if exists(dim_context) else dim
         self.scale = scale if exists(scale) else dim_head ** -0.5
         self.processor = processor
         self.heads = heads
 
         inner_dim = dim_head * heads
         self.to_q = nn.Linear(dim, inner_dim, bias=False)
-        self.to_k = nn.Linear(dim, inner_dim, bias=False)
-        self.to_v = nn.Linear(dim, inner_dim, bias=False)
+        self.to_k = nn.Linear(self.dim_context, inner_dim, bias=False)
+        self.to_v = nn.Linear(self.dim_context, inner_dim, bias=False)
         self.dropout = nn.Dropout(dropout)  # apply to attn score
 
         self.to_out = nn.Linear(inner_dim, dim)
@@ -163,7 +166,9 @@ class MultiHeadAttention(nn.Module):
         q, k, v = map(lambda t: rearrange(t, "b n (h d) -> b h n d", h=self.heads), (q, k, v))
 
         attn_mask = self.process_attn_mask_bias(mask, bias)
-        return F.scaled_dot_product_attention(q, k, v, attn_mask=attn_mask, dropout_p=self.dropout.p)
+        out = F.scaled_dot_product_attention(q, k, v, attn_mask=attn_mask, dropout_p=self.dropout.p)
+        out = rearrange(out, "b h n d -> b n (h d)")
+        return out
 
     def get_attn_processor(self, processor):
         assert processor in self.attn_processor_dict, f"processor {processor} is not implemented yet"
@@ -324,6 +329,7 @@ class Transformer(nn.Module):
         ff_groups: Optional[int] = None,
         layer_norm_eps: float = 1e-6,
         scale_type: Literal["none", "ada_proj", "ada_embed"] = "none",
+        use_skip_connection: bool = False,
     ):
         super().__init__()
         self.layers = nn.ModuleList([])
@@ -341,10 +347,14 @@ class Transformer(nn.Module):
             ), f"norm type {self.norm_type} and scale type {self.scale_type} must be the same"
         scale_class = self.get_scale_class(scale_type, dim, dim_cond)
 
-        self.layers = nn.ModuleList(
-            [
+        self.layers = nn.ModuleList([])
+        for ind in range(depth):
+            layer = ind + 1
+            has_skip = use_skip_connection and layer > (depth // 2)
+            self.layers.append(
                 nn.ModuleList(
                     [
+                        nn.Linear(dim * 2, dim) if has_skip else None,
                         norm_class(dim, eps=layer_norm_eps),
                         MultiHeadAttention(
                             dim=dim,
@@ -360,9 +370,7 @@ class Transformer(nn.Module):
                         scale_class(),
                     ]
                 )
-                for _ in range(depth)
-            ]
-        )
+            )
 
         self.final_norm = (
             nn.LayerNorm(dim, eps=layer_norm_eps)
@@ -426,7 +434,14 @@ class Transformer(nn.Module):
                     mask.shape == bias.shape
                 ), f"mask and bias must have the same shape, got {mask.shape} and {bias.shape}"
 
-        for attn_norm, attn, attn_scale, ff_norm, ff, ff_scale in self.layers:
+        skip_connects = []
+        for skip_combiner, attn_norm, attn, attn_scale, ff_norm, ff, ff_scale in self.layers:
+            if not exists(skip_combiner):
+                skip_connects.append(x)
+            else:
+                skip_connect = skip_connects.pop()
+                x = torch.cat([x, skip_connect], dim=-1)
+                x = skip_combiner(x)
             residual = x
             if self.norm_type == "layer":
                 x = attn_norm(x)
