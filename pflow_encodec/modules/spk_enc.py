@@ -3,13 +3,20 @@ from typing import Literal, Optional
 import torch
 import torch.nn as nn
 
-from pflow_encodec.modules.transformer import MultiHeadAttention, Transformer
+from pflow_encodec.modules.transformer import (
+    MultiHeadAttention,
+    Transformer,
+    Wav2Vec2StackedPositionEncoder,
+)
 
 
 class SpeakerEncoder(nn.Module):
     def __init__(
         self,
         dim_input: int,
+        conv_pos_kernel_size: int,
+        conv_pos_depth: int,
+        conv_pos_groups: int,
         depth: int,
         dim: int,
         dim_head: int,
@@ -27,9 +34,14 @@ class SpeakerEncoder(nn.Module):
         pool_query_range: float = 0.02,
     ):
         super().__init__()
-        # do not use positional encoding here
-
         self.proj = nn.Linear(dim_input, dim)
+
+        self.conv_pos = Wav2Vec2StackedPositionEncoder(
+            depth=conv_pos_depth,
+            dim=dim,
+            kernel_size=conv_pos_kernel_size,
+            groups=conv_pos_groups,
+        )
         self.encoder = Transformer(
             depth=depth,
             dim=dim,
@@ -56,8 +68,12 @@ class SpeakerEncoder(nn.Module):
             processor=attn_processor,
         )
 
+    def reset_parameters(self):
+        self.conv_pos.reset_parameters()
+
     def forward(self, x: torch.Tensor, mask: Optional[torch.Tensor] = None):
         x = self.proj(x)
+        x = x + self.conv_pos(x, mask)
         x = self.encoder(x, mask)
         emb = self.pool(self.query, context=x, mask=mask)
         return emb

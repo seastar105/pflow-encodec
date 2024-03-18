@@ -17,7 +17,7 @@ class TimestepEmbedder(nn.Module):
         super().__init__()
         self.dim = dim
         self.max_period = max_period
-        half = dim_time // 2
+        half = dim // 2
         freqs = torch.exp(-math.log(max_period) * torch.arange(start=0, end=half, dtype=torch.float32) / half)
         self.register_buffer("freqs", freqs)
         self.net = nn.Sequential(
@@ -95,17 +95,40 @@ class FlowMatchingTransformer(nn.Module):
             layer_norm_eps=layer_norm_eps,
             scale_type=scale_type,
             dim_cond=dim if norm_type == "ada_embed" else dim_time,
+            dim_final_norm_cond=dim_time if norm_type == "ada_embed" else None,
         )
 
         self.output_proj = nn.Linear(dim, dim_output)
 
         self.alibi = AlibiPositionalBias(heads)
 
+    def reset_parameters(self):
+        self.conv_pos.reset_parameters()
+        nn.init.trunc_normal_(self.time_embed.net[0].weight, std=0.02)
+        nn.init.zeros_(self.time_embed.net[0].bias)
+        nn.init.trunc_normal_(self.time_embed.net[2].weight, std=0.02)
+        nn.init.zeros_(self.time_embed.net[2].bias)
+
+        # init adaln
+        if self.norm_type == "ada_embed":
+            nn.init.zeros_(self.adaln_linear.weight)
+            nn.init.zeros_(self.adaln_linear.bias)
+
+        if self.scale_type == "ada_embed":
+            nn.init.zeros_(self.ada_scale_linear.weight)
+            nn.init.zeros_(self.ada_scale_linear.bias)
+
+        self.transformer.reset_adaln_parameters()
+
+        # zero init output proj
+        nn.init.zeros_(self.output_proj.weight)
+        nn.init.zeros_(self.output_proj.bias)
+
     def forward(
         self,
         x: torch.Tensor,
         x_ctx: torch.Tensor,
-        time: torch.Tensor,
+        times: torch.Tensor,
         padding_mask: Optional[torch.Tensor] = None,
         drop_ctx: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
@@ -116,7 +139,7 @@ class FlowMatchingTransformer(nn.Module):
         x = self.input_proj(x)
 
         x = x + self.conv_pos(x, mask=padding_mask)
-        cond = self.time_embed(time)
+        cond = self.time_embed(times).unsqueeze(1)
 
         cond_input = dict()
         if self.norm_type == "ada_proj":

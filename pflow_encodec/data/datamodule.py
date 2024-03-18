@@ -19,7 +19,7 @@ class TextLatentLightningDataModule(L.LightningDataModule):
         batch_durations: float = 50.0,
         boundaries: List[float] = [2.0, 3.0, 5.0, 7.0, 10.0, 15.0, 20.0, 60.0],
         num_workers: int = 4,
-        return_upsampled: bool = True,
+        return_upsampled: bool = False,
         max_frame: int = 1500,
         text2latent_rate: float = 1.5,
         mean: float = -0.5444963574409485,
@@ -117,6 +117,13 @@ class TextLatentLightningDataModule(L.LightningDataModule):
                 dim=0,
             )
 
+            max_duration_len = max(d.shape[-1] for d in durations)
+            duration_lens = torch.tensor([d.shape[-1] for d in durations])
+            durations = torch.cat(
+                [torch.nn.functional.pad(d, (0, max_duration_len - d.shape[-1]), value=0) for d in durations],
+                dim=0,
+            )
+
             max_latent_len = max(latent.shape[-2] for latent in latents)
             latent_lens = torch.tensor([latent.shape[-2] for latent in latents])
             latents = torch.cat(
@@ -126,7 +133,7 @@ class TextLatentLightningDataModule(L.LightningDataModule):
                 ],
                 dim=0,
             )
-            return text_tokens, text_token_lens, durations, latents, latent_lens
+            return text_tokens, text_token_lens, durations, duration_lens, latents, latent_lens
 
     def train_dataloader(self):
         world_size = 1 if not torch.distributed.is_initialized() else None

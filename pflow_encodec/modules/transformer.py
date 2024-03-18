@@ -6,6 +6,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from einops import einsum, rearrange
+from torch.nn.utils import remove_weight_norm, weight_norm
 
 from pflow_encodec.utils.helper import exists
 
@@ -17,6 +18,12 @@ class AdaptiveLayerNormProj(nn.Module):
 
         self.scale = nn.Linear(dim_cond, dim)
         self.bias = nn.Linear(dim_cond, dim)
+
+    def reset_parameters(self):
+        nn.init.zeros_(self.scale.weight)
+        nn.init.zeros_(self.scale.bias)
+        nn.init.zeros_(self.bias.weight)
+        nn.init.zeros_(self.bias.bias)
 
     def forward(self, x: torch.Tensor, cond: torch.Tensor) -> torch.Tensor:
         scale = self.scale(cond)
@@ -43,6 +50,10 @@ class AdaptiveScaleProj(nn.Module):
     def __init__(self, dim: int, dim_cond: int):
         super().__init__()
         self.scale = nn.Linear(dim_cond, dim)
+
+    def reset_parameters(self):
+        nn.init.zeros_(self.scale.weight)
+        nn.init.zeros_(self.scale.bias)
 
     def forward(self, x: torch.Tensor, cond: torch.Tensor) -> torch.Tensor:
         scale = self.scale(cond)
@@ -136,20 +147,23 @@ class MultiHeadAttention(nn.Module):
 
     def process_attn_mask_bias(self, mask, bias):
         if not exists(bias):
-            return mask
+            return mask, False
 
         if exists(mask):
             bias = bias.masked_fill(~mask, -torch.finfo(bias.dtype).max)
-        return bias
+        return bias, True
 
     def naive_attention(self, q, k, v, mask, bias, **attn_kwargs):
         q, k, v = map(lambda t: rearrange(t, "b n (h d) -> b h n d", h=self.heads), (q, k, v))
 
-        attn_mask = self.process_attn_mask_bias(mask, bias)
+        attn_mask, is_bias = self.process_attn_mask_bias(mask, bias)
         dots = einsum(q, k, "b h i d, b h j d -> b h i j") * self.scale
 
         if exists(attn_mask):
-            dots.masked_fill_(~attn_mask, -torch.finfo(dots.dtype).max)
+            if is_bias:
+                dots = dots + attn_mask
+            else:
+                dots.masked_fill_(~attn_mask, -torch.finfo(dots.dtype).max)
 
         attn = dots.softmax(dim=-1)
         attn = self.dropout(attn)
@@ -165,7 +179,7 @@ class MultiHeadAttention(nn.Module):
             )
         q, k, v = map(lambda t: rearrange(t, "b n (h d) -> b h n d", h=self.heads), (q, k, v))
 
-        attn_mask = self.process_attn_mask_bias(mask, bias)
+        attn_mask, _ = self.process_attn_mask_bias(mask, bias)
         out = F.scaled_dot_product_attention(q, k, v, attn_mask=attn_mask, dropout_p=self.dropout.p)
         out = rearrange(out, "b h n d -> b n (h d)")
         return out
@@ -222,7 +236,7 @@ class Wav2Vec2PositionEncoderLayer(nn.Module):
         encodings = encodings.transpose(1, 2)  # (B, T, D) -> (B, D, T)
 
         encodings = self.activation(encodings)
-        return
+        return encodings
 
 
 class Wav2Vec2StackedPositionEncoder(nn.Module):
@@ -253,14 +267,34 @@ class Wav2Vec2StackedPositionEncoder(nn.Module):
             mask = mask[..., None]
             x = x.masked_fill(~mask, 0.0)
 
-        x = x.transpose(1, 2)  # (B, T, D) -> (B, D, T)
+        x = x.transpose(1, 2)
         x = self.layers(x)
-        x = x.transpose(1, 2)  # (B, D, T) -> (B, T, D)
+        x = x.transpose(1, 2)
 
         if exists(mask):
             x = x.masked_fill(~mask, 0.0)
 
         return x
+
+    def reset_parameters(self):
+        def init_(m):
+            if isinstance(m, nn.Conv1d):
+                model_dim, kernel_size = m.in_channels, m.kernel_size[0]
+                try:
+                    remove_weight_norm(m)
+                except ValueError:
+                    # Raised during the `__init__` call since we don't have the weight
+                    # norm hook registered yet. Safe to ignore.
+                    pass
+
+                nn.init.normal_(m.weight, mean=0.0, std=(4.0 / (kernel_size * model_dim)) ** 0.5)
+
+                weight_norm(m, dim=2)
+
+                if m.bias is not None:
+                    nn.init.constant_(m.bias, 0.0)
+
+        self.apply(init_)
 
 
 class AlibiPositionalBias(nn.Module):
@@ -269,7 +303,7 @@ class AlibiPositionalBias(nn.Module):
         self.heads = heads
 
         slopes = torch.Tensor(self._get_slopes(heads))
-        slopes = rearrange(slopes, "h -> h 1 1")
+        slopes = rearrange(slopes, "h -> 1 h 1 1")
         self.register_buffer("slopes", slopes, persistent=False)
         self.register_buffer("bias", None, persistent=False)
 
@@ -277,7 +311,7 @@ class AlibiPositionalBias(nn.Module):
         i_arange = torch.arange(seq_len, device=self.device)
         j_arange = torch.arange(seq_len, device=self.device)
         bias = -torch.abs(rearrange(j_arange, "j -> 1 1 j") - rearrange(i_arange, "i -> 1 i 1"))
-        return bias
+        return bias.unsqueeze(0)
 
     @staticmethod
     def _get_slopes(heads):
@@ -330,6 +364,7 @@ class Transformer(nn.Module):
         layer_norm_eps: float = 1e-6,
         scale_type: Literal["none", "ada_proj", "ada_embed"] = "none",
         use_skip_connection: bool = False,
+        dim_final_norm_cond: Optional[int] = None,
     ):
         super().__init__()
         self.layers = nn.ModuleList([])
@@ -372,11 +407,23 @@ class Transformer(nn.Module):
                 )
             )
 
+        if self.norm_type == "ada_embed":
+            assert exists(dim_final_norm_cond), "dim_final_norm_cond must be provided when using ada_embed"
+
         self.final_norm = (
             nn.LayerNorm(dim, eps=layer_norm_eps)
             if self.norm_type == "layer"
-            else AdaptiveLayerNormProj(dim, dim_cond=dim_cond, eps=layer_norm_eps)
+            else AdaptiveLayerNormProj(
+                dim, dim_cond=dim_cond if self.norm_type == "ada_proj" else dim_final_norm_cond, eps=layer_norm_eps
+            )
         )
+
+    def reset_adaln_parameters(self):
+        def init_(m):
+            if isinstance(m, AdaptiveLayerNormProj):
+                m.reset_parameters()
+
+        self.apply(init_)
 
     @staticmethod
     def expand_mask(mask: Optional[torch.Tensor] = None):
@@ -429,10 +476,6 @@ class Transformer(nn.Module):
         mask = self.expand_mask(mask)
         if exists(bias):
             assert bias.ndim == 4, f"bias must have 4 dimensions in Transformer, got {bias.ndim}"
-            if exists(mask):
-                assert (
-                    mask.shape == bias.shape
-                ), f"mask and bias must have the same shape, got {mask.shape} and {bias.shape}"
 
         skip_connects = []
         for skip_combiner, attn_norm, attn, attn_scale, ff_norm, ff, ff_scale in self.layers:

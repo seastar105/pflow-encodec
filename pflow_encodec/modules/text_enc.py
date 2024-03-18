@@ -77,6 +77,24 @@ class TextEncoder(nn.Module):
 
         self.alibi = AlibiPositionalBias(heads)
 
+    def reset_parameters(self):
+        self.conv_pos.reset_parameters()
+
+        # init adaln
+        if self.norm_type == "ada_embed":
+            nn.init.zeros_(self.adaln_linear.weight)
+            nn.init.zeros_(self.adaln_linear.bias)
+
+        if self.scale_type == "ada_embed":
+            nn.init.zeros_(self.ada_scale_linear.weight)
+            nn.init.zeros_(self.ada_scale_linear.bias)
+
+        self.transformer.reset_adaln_parameters()
+
+        # zero init output proj
+        nn.init.zeros_(self.output_proj.weight)
+        nn.init.zeros_(self.output_proj.bias)
+
     def forward(
         self,
         text_tokens: torch.Tensor,
@@ -84,7 +102,7 @@ class TextEncoder(nn.Module):
         padding_mask: Optional[torch.Tensor] = None,
     ):
         x = self.input_proj(self.text_emb(text_tokens))
-        x = x + self.conv_pos(x)
+        x = x + self.conv_pos(x, padding_mask)
 
         cond = spk_emb
         cond_input = dict()
@@ -109,4 +127,4 @@ class TextEncoder(nn.Module):
         seq_len = x.size(1)
         bias = self.alibi(seq_len)
         x = self.transformer(x, mask=padding_mask, cond_input=cond_input, bias=bias)
-        return self.output_proj(x)
+        return self.output_proj(x), x
