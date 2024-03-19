@@ -334,7 +334,7 @@ class AlibiPositionalBias(nn.Module):
         return next(self.buffers()).device
 
     def forward(self, seq_len: int):
-        if exists(self.bias) and self.bias.shape[-1]:
+        if exists(self.bias) and self.bias.shape[-1] >= seq_len:
             return self.bias[..., -seq_len:, -seq_len:]
 
         bias = self.get_bias(seq_len)

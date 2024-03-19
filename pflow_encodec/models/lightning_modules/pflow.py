@@ -170,7 +170,7 @@ class PFlowLightningModule(L.LightningModule):
             text_token, duration, latent = self.trainer.datamodule.val_ds[sample_idx]
             start_idx = torch.randint(0, latent.shape[-2] - self.prompt_length, (1,))
             prompt = latent[:, start_idx : start_idx + self.prompt_length]
-            sampled = self.net.generate(text_token, prompt, duration)
+            sampled = self.net.generate(text_token.to(self.device), prompt.to(self.device), duration.to(self.device))
             write_to_tb(sampled, f"sampled/gt_dur_{idx}.wav")
 
         # sample with pred duration
@@ -178,7 +178,7 @@ class PFlowLightningModule(L.LightningModule):
             text_token, duration, latent = self.trainer.datamodule.val_ds[sample_idx]
             start_idx = torch.randint(0, latent.shape[-2] - self.prompt_length, (1,))
             prompt = latent[:, start_idx : start_idx + self.prompt_length]
-            sampled = self.net.generate(text_token, prompt)
+            sampled = self.net.generate(text_token.to(self.device), prompt.to(self.device))
             write_to_tb(sampled, f"sampled/pred_dur_{idx}.wav")
 
         self.net.train()
