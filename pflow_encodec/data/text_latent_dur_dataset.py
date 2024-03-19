@@ -17,8 +17,18 @@ class TextLatentDataset(Dataset):
     latent: torch.Tensor, shape (1, T_latent, D_latent)
     """
 
-    def __init__(self, tsv_path: str, add_trailing_silence: bool = True, mean: float = 0.0, std: float = 1.0):
+    def __init__(
+        self,
+        tsv_path: str,
+        add_trailing_silence: bool = True,
+        mean: float = 0.0,
+        std: float = 1.0,
+        min_duration: float = 3.0,
+        max_duration: float = 15.0,
+    ):
         df = pd.read_csv(tsv_path, sep="\t", engine="pyarrow")
+        df = df[df["duration"] >= min_duration]
+        df = df[df["duration"] <= max_duration]
 
         self.paths = df["audio_path"].tolist()
         self.texts = df["text"].tolist()

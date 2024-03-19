@@ -17,7 +17,9 @@ class TextLatentLightningDataModule(L.LightningDataModule):
         val_tsv_path: str,
         add_trailing_silence: bool = True,
         batch_durations: float = 50.0,
-        boundaries: List[float] = [2.0, 3.0, 5.0, 7.0, 10.0, 15.0, 20.0, 60.0],
+        min_duration: float = 3.0,
+        max_duration: float = 15.0,
+        boundaries: List[float] = [3.0, 5.0, 7.0, 10.0, 15.0],
         num_workers: int = 4,
         return_upsampled: bool = False,
         max_frame: int = 1500,
@@ -36,6 +38,8 @@ class TextLatentLightningDataModule(L.LightningDataModule):
         self.pad_idx = None
 
         self.batch_durations = batch_durations
+        self.min_duration = min_duration
+        self.max_duration = max_duration
         self.boundaries = boundaries
         self.num_workers = num_workers
         self.return_upsampled = return_upsampled
@@ -50,10 +54,20 @@ class TextLatentLightningDataModule(L.LightningDataModule):
         if stage != "fit":
             raise ValueError(f"Stage {stage} is not supported")
         self.train_ds = TextLatentDataset(
-            self.train_tsv_path, add_trailing_silence=self.add_trailing_silence, mean=self.mean, std=self.std
+            self.train_tsv_path,
+            add_trailing_silence=self.add_trailing_silence,
+            mean=self.mean,
+            std=self.std,
+            min_duration=self.min_duration,
+            max_duration=self.max_duration,
         )
         self.val_ds = TextLatentDataset(
-            self.val_tsv_path, add_trailing_silence=self.add_trailing_silence, mean=self.mean, std=self.std
+            self.val_tsv_path,
+            add_trailing_silence=self.add_trailing_silence,
+            mean=self.mean,
+            std=self.std,
+            min_duration=self.min_duration,
+            max_duration=self.max_duration,
         )
 
         self.pad_idx = self.train_ds.tokenizer.pad_idx

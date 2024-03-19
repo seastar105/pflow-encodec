@@ -260,5 +260,31 @@ class PFlow(nn.Module):
         return duration_loss, enc_loss, flow_matching_loss
 
     @torch.no_grad()
-    def generate(self, text_tokens, prompts, text_token_lens=None, durations=None):
-        pass
+    def generate(
+        self, text_tokens, prompts, durations=None, nfe: int = 16, ode_method: str = "midpoint", cfg_scale: float = 0.0
+    ):
+        assert text_tokens.shape[0] == 1, "generation with batch size > 1 is not supported yet"
+        spk_emb = self.spk_encoder(prompts)
+        h, text_emb = self.text_encoder(text_tokens=text_tokens, spk_emb=spk_emb)
+
+        if durations is None:
+            duration_pred = self.duration_predictor(text_emb.detach())
+            durations = torch.expm1(duration_pred).clamp(min=1).ceil().long()
+
+        h = torch.repeat_interleave(h, durations.squeeze(), dim=1)
+
+        def sample_fn(t, x_t):
+            batch_size = x_t.shape[0]
+            t = t.expand(batch_size)
+            drop_cond = torch.zeros_like(t).bool()
+            v = self.flow_matching_decoder(x_t, h, t, drop_ctx=drop_cond)
+            if cfg_scale != 0:
+                v_null = self.transformer(x_t, h, t, drop_ctx=~drop_cond)
+                v = (1 + cfg_scale) * v - v_null
+
+            return v
+
+        times = torch.linspace(0, 1, nfe).to(h.device)
+        x0 = torch.randn_like(h)
+        traj = torchdiffeq.odeint(sample_fn, x0, times, atol=1e-4, rtol=1e-4, method=ode_method)
+        return traj[-1]
