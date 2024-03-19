@@ -22,6 +22,7 @@ class PFlowLightningModule(L.LightningModule):
         sample_idx: List[int] = [],
         mean: float = 0.0,
         std: float = 1.0,
+        text2latent_ratio: float = 1.5,
     ):
         super().__init__()
         self.save_hyperparameters(logger=False)
@@ -43,6 +44,7 @@ class PFlowLightningModule(L.LightningModule):
 
         self.mean = mean
         self.std = std
+        self.text2latent_ratio = text2latent_ratio
 
     def configure_optimizers(self):
         optimizer = hydra.utils.instantiate(self.optimizer_cfg, params=self.net.parameters())
@@ -170,7 +172,12 @@ class PFlowLightningModule(L.LightningModule):
             text_token, duration, latent = self.trainer.datamodule.val_ds[sample_idx]
             start_idx = torch.randint(0, latent.shape[-2] - self.prompt_length, (1,))
             prompt = latent[:, start_idx : start_idx + self.prompt_length]
-            sampled = self.net.generate(text_token.to(self.device), prompt.to(self.device), duration.to(self.device))
+            sampled = self.net.generate(
+                text_token.to(self.device),
+                prompt.to(self.device),
+                duration.to(self.device),
+                upscale_ratio=self.text2latent_ratio,
+            )
             write_to_tb(sampled, f"sampled/gt_dur_{idx}.wav")
 
         # sample with pred duration
@@ -178,7 +185,9 @@ class PFlowLightningModule(L.LightningModule):
             text_token, duration, latent = self.trainer.datamodule.val_ds[sample_idx]
             start_idx = torch.randint(0, latent.shape[-2] - self.prompt_length, (1,))
             prompt = latent[:, start_idx : start_idx + self.prompt_length]
-            sampled = self.net.generate(text_token.to(self.device), prompt.to(self.device))
+            sampled = self.net.generate(
+                text_token.to(self.device), prompt.to(self.device), upscale_ratio=self.text2latent_ratio
+            )
             write_to_tb(sampled, f"sampled/pred_dur_{idx}.wav")
 
         self.net.train()

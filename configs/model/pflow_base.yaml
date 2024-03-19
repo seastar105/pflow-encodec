@@ -75,3 +75,4 @@ sample_freq: 2000
 sample_idx: [0, 1000, 2000, 3000, 4000, 5000]
 mean: ???
 std: ???
+text2latent_ratio: 1.5

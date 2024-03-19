@@ -261,7 +261,14 @@ class PFlow(nn.Module):
 
     @torch.no_grad()
     def generate(
-        self, text_tokens, prompts, durations=None, nfe: int = 16, ode_method: str = "midpoint", cfg_scale: float = 0.0
+        self,
+        text_tokens,
+        prompts,
+        durations=None,
+        nfe: int = 16,
+        ode_method: str = "midpoint",
+        cfg_scale: float = 0.0,
+        upscale_ratio: float = 1.5,
     ):
         assert text_tokens.shape[0] == 1, "generation with batch size > 1 is not supported yet"
         spk_emb = self.spk_encoder(prompts)
@@ -272,6 +279,10 @@ class PFlow(nn.Module):
             durations = torch.expm1(duration_pred).clamp(min=1).ceil().long()
 
         h = torch.repeat_interleave(h, durations.squeeze(), dim=1)
+        upscale_len = round(h.shape[-2] * upscale_ratio)
+        h = rearrange(h, "b t c -> b c t")
+        h = F.interpolate(h, size=upscale_len, mode=self.interpolate_mode)
+        h = rearrange(h, "b c t -> b t c")
 
         def sample_fn(t, x_t):
             batch_size = x_t.shape[0]
