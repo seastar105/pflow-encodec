@@ -205,10 +205,12 @@ class PFlow(nn.Module):
         loss = F.mse_loss(pred, log_target)
         return loss
 
-    def enc_loss(self, h, latents, prompt_masks):
+    def enc_loss(self, h, latents, latent_lens, prompt_masks):
         assert h.shape == latents.shape, f"Shape mismatch: {h.shape} != {latents.shape}"
-        pred = h[prompt_masks]
-        target = latents[prompt_masks]
+        attn_mask = self.length_to_attn_mask(latent_lens)
+        loss_mask = ~prompt_masks & attn_mask
+        pred = h[loss_mask]
+        target = latents[loss_mask]
         loss = F.mse_loss(pred, target)
         return loss
 
@@ -239,7 +241,7 @@ class PFlow(nn.Module):
         # encoder loss
         h = self.length_regulator(h, text_token_lens, durations, duration_lens)
         h = self.interpolate(h, latents, mode=self.interpolate_mode)
-        enc_loss = self.enc_loss(h, latents, prompt_masks)
+        enc_loss = self.enc_loss(h, latents, latent_lens, prompt_masks)
 
         # flow matching
         times = torch.rand((h.shape[0],)).to(h.device)
@@ -255,7 +257,8 @@ class PFlow(nn.Module):
         vt = self.flow_matching_decoder(
             x=xt, x_ctx=x_ctx, times=times, padding_mask=latent_padding_mask, drop_ctx=drop_cond
         )
-        flow_matching_loss = F.mse_loss(vt[prompt_masks], flow[prompt_masks])
+        loss_mask = ~prompt_masks & latent_padding_mask
+        flow_matching_loss = F.mse_loss(vt[loss_mask], flow[loss_mask])
 
         return duration_loss, enc_loss, flow_matching_loss
 
