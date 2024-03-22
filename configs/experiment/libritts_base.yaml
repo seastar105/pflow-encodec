@@ -13,7 +13,7 @@ seed: 998244353
 test: False
 
 data:
-  batch_durations: 50.0
+  batch_durations: 100.0
   num_workers: 8
 callbacks:
   val_checkpoint:
@@ -23,18 +23,18 @@ callbacks:
 model:
   scheduler:
     total_steps: ${trainer.max_steps}
-    pct_start: 0.02 # 5000 steps
+    pct_start: 0.01
   sample_freq: 5000
   mean: ${data.mean}
   std: ${data.std}
 trainer:
-  max_steps: 250000
+  max_steps: 500000
   max_epochs: 10000 # arbitrary large number
   precision: bf16-mixed
-  accumulate_grad_batches: 1
-  gradient_clip_val: 0.2
+  accumulate_grad_batches: 4
+  gradient_clip_val: 1.0
   num_nodes: 1
   devices: 1
 hydra:
   run:
-    dir: ${paths.log_dir}/${task_name}/runs/libritts_base
+    dir: ${paths.log_dir}/${task_name}/runs/libritts_base_fixed_bs100x4_clip1.0_skipconnect

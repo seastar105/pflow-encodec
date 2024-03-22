@@ -96,6 +96,7 @@ class FlowMatchingTransformer(nn.Module):
             scale_type=scale_type,
             dim_cond=dim if norm_type == "ada_embed" else dim_time,
             dim_final_norm_cond=dim_time if norm_type == "ada_embed" else None,
+            use_skip_connection=True,
         )
 
         self.output_proj = nn.Linear(dim, dim_output)

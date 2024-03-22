@@ -270,7 +270,7 @@ class PFlow(nn.Module):
         durations=None,
         nfe: int = 16,
         ode_method: str = "midpoint",
-        cfg_scale: float = 0.0,
+        cfg_scale: float = 1.0,
         upscale_ratio: float = 1.5,
     ):
         assert text_tokens.shape[0] == 1, "generation with batch size > 1 is not supported yet"
@@ -293,7 +293,7 @@ class PFlow(nn.Module):
             drop_cond = torch.zeros_like(t).bool()
             v = self.flow_matching_decoder(x_t, h, t, drop_ctx=drop_cond)
             if cfg_scale != 0:
-                v_null = self.transformer(x_t, h, t, drop_ctx=~drop_cond)
+                v_null = self.flow_matching_decoder(x_t, h, t, drop_ctx=~drop_cond)
                 v = (1 + cfg_scale) * v - v_null
 
             return v
