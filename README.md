@@ -23,6 +23,10 @@ Generated Audio
 
 https://github.com/seastar105/pflow-encodec/assets/30820469/8289bffe-f967-4af5-91c7-3fcb754822fb
 
+# Pre-trained models
+
+- English model trained for LibriTTS-R, about 265K steps. [model link](https://huggingface.co/seastar105/pflow-encodec-libritts/tree/main), [config link](https://github.com/seastar105/pflow-encodec/blob/main/configs/experiment/libritts_base.yaml), [tensorboard screenshot](https://github.com/seastar105/pflow-encodec/blob/main/screenshots/pflow_libri_tb.png)
+
 # TODO
 
 - [x] Implement baseline model.
