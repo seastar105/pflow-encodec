@@ -17,7 +17,11 @@ Text: P-Flow encodec is Text-to-Speech model trained on Encodec latent space, us
 
 Prompt Audio
 
+https://github.com/seastar105/pflow-encodec/assets/30820469/7ef45589-4f08-478e-a8be-6bd6f30a7f1d
+
 Generated Audio
+
+https://github.com/seastar105/pflow-encodec/assets/30820469/8289bffe-f967-4af5-91c7-3fcb754822fb
 
 # TODO
 
