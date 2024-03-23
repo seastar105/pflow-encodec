@@ -25,8 +25,8 @@ class EncodecTokenizer:
             audio (torch.Tensor): audio tensor of shape (1, 1, T)
         """
         signal = AudioSignal(path)
-        if signal.sample_rate != self.codec.sample_rate:
-            signal = signal.resample(self.codec.sample_rate)
+        if signal.sample_rate != self.sample_rate:
+            signal = signal.resample(self.sample_rate)
         if signal.num_channels > 1:
             signal = signal.to_mono()
         return signal.audio_data.to(device=self.device, dtype=self.dtype)
@@ -72,6 +72,17 @@ class EncodecTokenizer:
         """
         codes = self.codec.quantizer.encode(latents.transpose(-2, -1)).transpose(0, 1)
         return self.decode_codes(codes)
+
+    def quantize_latents(self, latents: torch.Tensor) -> torch.Tensor:
+        """Quantize continuous latent to discrete tokens.
+
+        Args:
+            latents (torch.Tensor): continuous latent of shape (1, T, D)
+
+        Returns:
+            torch.Tensor: discrete tokens of shape (1, Q, T)
+        """
+        return self.codec.quantizer.encode(latents.transpose(-2, -1)).transpose(0, 1)
 
 
 class TextTokenizer:

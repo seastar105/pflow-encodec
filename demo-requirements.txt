@@ -1,0 +1,4 @@
+deepfilternet
+git+https://github.com/seastar105/audiocraft.git#egg=audiocraft
+vocos
+gradio
