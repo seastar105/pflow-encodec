@@ -9,10 +9,20 @@ I have two goals to achieve in this project.
 - First, I want to test character-based input with [SeamlessM4T](https://arxiv.org/abs/2308.11596)'s [Aligner](https://github.com/facebookresearch/seamless_communication/blob/main/docs/m4t/unity2_aligner_README.md) for English, Korean, Japanese and other languages. but, mainly for three languages mentioned above.
 - Second, zero-shot multilingual TTS model. since this model will be trained with sentencepiece tokenizer input, it does not need phonemizer. so, it would be easily adapted to other languages.
 
+# Samples
+
+Generated Samples from model trained on LibriTTS-R are at [samples](https://github.com/seastar105/pflow-encodec/tree/main/samples) folder. All samples are decoded with MultiBand-Diffusion model from [AudioCraft](https://github.com/facebookresearch/audiocraft/blob/main/docs/MBD.md)Pretrained checkpoint is available [here](https://huggingface.co/seastar105/pflow-encodec-libritts/tree/main). you can check how to use it in [sample notebook](https://github.com/seastar105/pflow-encodec/blob/main/notebooks/generate.ipynb).
+
+Text: P-Flow encodec is Text-to-Speech model trained on Encodec latent space, using Flow Matching.
+
+Prompt Audio
+
+Generated Audio
+
 # TODO
 
 - [x] Implement baseline model.
-- [ ] Train model on libritts-r.
+- [x] Train model on libritts-r.
 - [ ] Add some optimization(flash-attention, fused kernels) for faster training.
 - [ ] Simple gradio demo.
 - [ ] Dataset preparation documentation.
