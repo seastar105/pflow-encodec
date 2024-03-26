@@ -34,10 +34,6 @@ class TextLatentDataset(Dataset):
         self.texts = df["text"].tolist()
 
         self.audio_durations = df["duration"].tolist()
-        # check audio_duration is sorted
-        for prv, nxt in zip(self.audio_durations[:-1], self.audio_durations[1:]):
-            if prv > nxt:
-                raise ValueError(f"Audio metadata should be in sorted by duration, filename: {tsv_path}")
 
         self.tokenizer = TextTokenizer(add_trailing_silence=add_trailing_silence)
 

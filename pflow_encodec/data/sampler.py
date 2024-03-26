@@ -13,7 +13,7 @@ class DistributedBucketSampler(DistributedSampler):
 
     it gathers samples with similar length into a batch. each batch comes from a single bucket.
     bucket[i] contains samples with length in (boundaries[i], boundaries[i+1]]. samples with length < first bucket and
-    length > last bucket will be discarded. dataset.lengths should be sorted in ascending order.
+    length > last bucket will be discarded.
     Args:
         dataset: dataset to sample from. it should have a lengths attribute
         batch_durations: number of frames in a batch
