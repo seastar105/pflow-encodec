@@ -16,8 +16,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--input_tsv", type=str, required=True)
-    parser.add_argument("--output_ext", type=str, help="output csv file", default=".duration.npy")
-    parser.add_argument("--add_trailing_silence", action="store_true")
+    parser.add_argument(
+        "--output_ext", type=str, help="output extension of character duration", default=".duration.npy"
+    )
     parser.add_argument("--empty_cache_rate", type=int, default=5000)
     args = parser.parse_args()
 
@@ -44,7 +45,10 @@ if __name__ == "__main__":
                 continue
             try:
                 durations, token_ids, tokens = extractor.extract_alignment(
-                    path, text, plot=False, add_trailing_silence=args.add_trailing_silence
+                    path,
+                    text,
+                    plot=False,
+                    add_trailing_silence=True,
                 )
                 assert (
                     durations.shape[-1] == token_ids.shape[-1]
@@ -52,8 +56,9 @@ if __name__ == "__main__":
                 np.save(output_path, durations.cpu().numpy().astype(np.int64))
             except Exception as e:
                 errors.append((path, text, str(e)))
+                print(f"Error in {path}: {e}")  # fallback to cpu?
     if errors:
         logging.error(f"Errors: {errors}")
-        with open("errors.txt", "w") as f:
+        with open(Path(args.input_tsv).parent / "errors.txt", "w") as f:
             for error in errors:
                 f.write(f"{error}\n")
