@@ -3,7 +3,7 @@ _target_: pflow_encodec.models.lightning_modules.pflow.PFlowLightningModule
 net:
   _target_: pflow_encodec.models.pflow.PFlow
   feature_dim: 128
-  text_encoder_vocab_size: 10094
+  text_encoder_vocab_size: 10904
   text_encoder_embed_dim: 192
   text_encoder_conv_pos_depth: 2
   text_encoder_conv_pos_kernel_size: 15
