@@ -13,7 +13,7 @@ I have two goals to achieve in this project.
 
 Generated Samples from model trained on LibriTTS-R are at [samples](https://github.com/seastar105/pflow-encodec/tree/main/samples) folder. All samples are decoded with MultiBand-Diffusion model from [AudioCraft](https://github.com/facebookresearch/audiocraft/blob/main/docs/MBD.md)Pretrained checkpoint is available [here](https://huggingface.co/seastar105/pflow-encodec-libritts/tree/main). you can check how to use it in [sample notebook](https://github.com/seastar105/pflow-encodec/blob/main/notebooks/generate.ipynb).
 
-Text: P-Flow encodec is Text-to-Speech model trained on Encodec latent space, using Flow Matching.
+English Text: P-Flow encodec is Text-to-Speech model trained on Encodec latent space, using Flow Matching.
 
 Prompt Audio
 
@@ -23,9 +23,12 @@ Generated Audio
 
 https://github.com/seastar105/pflow-encodec/assets/30820469/8289bffe-f967-4af5-91c7-3fcb754822fb
 
+Korean Text: 백남준은 미디어 아트의 개척자로서 다양한 테크놀로지를 이용하여 실험적이고 창의적으로 작업했다.
+
 # Pre-trained models
 
-- English model trained for LibriTTS-R, about 265K steps. [model link](https://huggingface.co/seastar105/pflow-encodec-libritts/tree/main), [config link](https://github.com/seastar105/pflow-encodec/blob/main/configs/experiment/libritts_base.yaml), [tensorboard screenshot](https://github.com/seastar105/pflow-encodec/blob/main/screenshots/pflow_libri_tb.png)
+- English model trained on LibriTTS-R, about 265K steps. [model repo](https://huggingface.co/seastar105/pflow-encodec-libritts), [config link](https://github.com/seastar105/pflow-encodec/blob/main/configs/experiment/libritts_base.yaml), [tensorboard screenshot](https://github.com/seastar105/pflow-encodec/blob/main/screenshots/pflow_libri_tb.png)
+- Korean model trained on korean subset of [AIHub 131](https://aihub.or.kr/aihubdata/data/view.do?currMenu=115&topMenu=100&aihubDataSe=data&dataSetSn=71524) dataset (Multi-lingual Read Speech corpus for Translation), about 280k steps with small batches. this model does not work as well as English one. [model repo](https://huggingface.co/seastar105/pflow-encodec-aihub-libri-korean)
 
 # TODO
 
