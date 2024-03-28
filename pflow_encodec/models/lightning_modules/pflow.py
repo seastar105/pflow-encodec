@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 
 import hydra
 import lightning as L
@@ -9,6 +9,9 @@ from omegaconf import DictConfig
 
 from pflow_encodec.data.tokenizer import EncodecTokenizer
 from pflow_encodec.models.pflow import PFlow
+from pflow_encodec.utils.pylogger import RankedLogger
+
+logger = RankedLogger(__name__)
 
 
 class PFlowLightningModule(L.LightningModule):
@@ -23,6 +26,7 @@ class PFlowLightningModule(L.LightningModule):
         mean: float = 0.0,
         std: float = 1.0,
         text2latent_ratio: float = 1.5,
+        net_ckpt_path: Optional[str] = None,
     ):
         super().__init__()
         self.save_hyperparameters(logger=False)
@@ -45,6 +49,10 @@ class PFlowLightningModule(L.LightningModule):
         self.mean = mean
         self.std = std
         self.text2latent_ratio = text2latent_ratio
+
+        if net_ckpt_path is not None:
+            logger.info(f"Loading model from {net_ckpt_path}")
+            self.net.load_state_dict(torch.load(net_ckpt_path, map_location="cpu")["state_dict"])
 
     def configure_optimizers(self):
         optimizer = hydra.utils.instantiate(self.optimizer_cfg, params=self.net.parameters())

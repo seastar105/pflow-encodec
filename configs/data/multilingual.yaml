@@ -1,0 +1,15 @@
+_target_: pflow_encodec.data.datamodule.TextLatentLightningDataModule
+
+train_tsv_path: /home/seastar105/datasets/multilingual/train_meta.tsv
+val_tsv_path: /home/seastar105/datasets/multilingual/dev_meta.tsv
+add_trailing_silence: True
+batch_durations: 50.0
+min_duration: 3.5
+max_duration: 15.0
+boundaries: [3.0, 5.0, 7.0, 10.0, 15.0]
+num_workers: 8
+return_upsampled: False
+max_frame: 1500 # 20s
+text2latent_rate: 1.5 # 50Hz:75Hz
+mean: -0.5408026252250875
+std: 4.998098761068811
