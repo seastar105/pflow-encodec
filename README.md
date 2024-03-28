@@ -11,7 +11,8 @@ I have two goals to achieve in this project.
 
 # Samples
 
-Generated Samples from model trained on LibriTTS-R are at [samples](https://github.com/seastar105/pflow-encodec/tree/main/samples) folder. All samples are decoded with MultiBand-Diffusion model from [AudioCraft](https://github.com/facebookresearch/audiocraft/blob/main/docs/MBD.md)Pretrained checkpoint is available [here](https://huggingface.co/seastar105/pflow-encodec-libritts/tree/main). you can check how to use it in [sample notebook](https://github.com/seastar105/pflow-encodec/blob/main/notebooks/generate.ipynb).
+Generated Samples from model trained on LibriTTS-R are at [samples](https://github.com/seastar105/pflow-encodec/tree/main/samples) folder. All samples are decoded with MultiBand-Diffusion model from [AudioCraft](https://github.com/facebookresearch/audiocraft/blob/main/docs/MBD.md).
+Pretrained checkpoint is available [here](https://huggingface.co/seastar105/pflow-encodec-libritts/tree/main). you can check how to use it in [sample notebook](https://github.com/seastar105/pflow-encodec/blob/main/notebooks/generate.ipynb).
 
 English Text: P-Flow encodec is Text-to-Speech model trained on Encodec latent space, using Flow Matching.
 
@@ -24,6 +25,22 @@ Generated Audio
 https://github.com/seastar105/pflow-encodec/assets/30820469/8289bffe-f967-4af5-91c7-3fcb754822fb
 
 Korean Text: 백남준은 미디어 아트의 개척자로서 다양한 테크놀로지를 이용하여 실험적이고 창의적으로 작업했다.
+
+Prompt Audio
+
+
+
+https://github.com/seastar105/pflow-encodec/assets/30820469/fbad834c-8c64-4818-9767-3c4c9a9b11ed
+
+
+
+Generated Audio
+
+
+
+https://github.com/seastar105/pflow-encodec/assets/30820469/e6de1178-786a-4143-9c80-ca1f1ac8c2c6
+
+
 
 # Pre-trained models
 
