@@ -151,13 +151,24 @@ trainer:
   devices: 1
 hydra:
   run:
-    dir: <fill this path>
+    dir: <fill experiment result path>
 ```
 
 now you can run training with following command.
 
 ```bash
 python pflow_encodec/train.py experiment=new_dataset
+```
+
+**NOTE: If you want to train model with multiple GPUs, you should adjust trainer.num_nodes and trainer.devices in experiment config. Also you should set trainer.use_distributed_sampler to be False. For more detailed information, check out Pytorch Lightning's documents.**
+
+Example of single node 4 gpus
+
+```
+trainer:
+  num_nodes: 1
+  devices: 4
+  use_distributed_sampler: False
 ```
 
 # Pre-trained models
