@@ -185,7 +185,7 @@ trainer:
 
 | Language          | Weights                                                                       | Model Card |
 | ----------------- | ----------------------------------------------------------------------------- | ---------- |
-| MultiLingual(EJK) | [🤗 Hub](https://huggingface.co/seastar105/pflow-encodec-ejk)                  |            |
+| MultiLingual(EJK) | [🤗 Hub](https://huggingface.co/seastar105/pflow-encodec-ejk)                  | [Link](https://github.com/seastar105/pflow-encodec/blob/main/MODEL_CARD.md)           |
 | English           | [🤗 Hub](https://huggingface.co/seastar105/pflow-encodec-libritts)             |            |
 | Japanese          | [🤗 Hub](https://huggingface.co/seastar105/pflow-encodec-aihub-libri-japanese) |            |
 | Korean            | [🤗 Hub](https://huggingface.co/seastar105/pflow-encodec-aihub-libri-korean)   |            |
