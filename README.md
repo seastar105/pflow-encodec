@@ -4,7 +4,7 @@ Implementation of TTS based on paper [P-Flow: A Fast and Data-Efficient Zero-Sho
 
 # Main goal of this project
 
-I have two goals to achieve in this project.
+I have two goals to achieve in this project. It seems work but, really poor at Japanese and numbers. 
 
 - First, I want to test character-based input with [SeamlessM4T](https://arxiv.org/abs/2308.11596)'s [Aligner](https://github.com/facebookresearch/seamless_communication/blob/main/docs/m4t/unity2_aligner_README.md) for English, Korean, Japanese and other languages. but, mainly for three languages mentioned above.
 - Second, zero-shot multilingual TTS model. since this model will be trained with sentencepiece tokenizer input, it does not need phonemizer. so, it would be easily adapted to other languages tokenizer supports. check out supported languages of tokenizer [here](https://github.com/facebookresearch/seamless_communication/blob/main/src/seamless_communication/cards/nar_t2u_aligner.yaml)
@@ -16,33 +16,51 @@ Pretrained checkpoint used here is available on [huggingface](https://huggingfac
 
 you can check how to use it in [sample notebook](https://github.com/seastar105/pflow-encodec/blob/main/notebooks/generate.ipynb).
 
-Currently, speaker embedding of multi-lingual model seems to be highly entangled with language bias. I'm planning to add language ID to reduce language bias in speaker embedding.
+Currently, speaker embedding of multi-lingual model seems to be highly entangled with language info. it shows worse zero-shot capability. I'm planning to train new model with language ID to reduce language bias in speaker embedding.
 
-Code-switch Text:
+Code-switch Text: There's famous japanese sentence, つきがきれいですね, which means 나는 당신을 사랑합니다.
 
-Prompt Audio
+English Prompt Generation
 
-Generated Audio
+https://github.com/seastar105/pflow-encodec/assets/30820469/57a0450b-e1b2-48b6-b0ec-9433806edb10
 
-English Text:
+Japanese Prompt Generation
+
+https://github.com/seastar105/pflow-encodec/assets/30820469/bf5e4c29-2545-411a-adbc-b461a5c2cefa
+
+Korean Prompt Generation
+
+https://github.com/seastar105/pflow-encodec/assets/30820469/74f2ff7a-554d-4797-9841-a8b7b74d9fbf
+
+English Text: P-Flow encodec is Text-to-Speech model trained on Encodec latent space, using Flow Matching.
 
 Prompt Audio (from [LibriTTS-R](https://www.openslr.org/141/))
 
+https://github.com/seastar105/pflow-encodec/assets/30820469/a3c1b3d8-ea94-4cb7-bd21-7226e3fd54b1
+
 Generated Audio
 
-Japanese Text:
+https://github.com/seastar105/pflow-encodec/assets/30820469/1de00f81-4c87-402e-a4bc-66deb29c194d
+
+Japanese Text: こんにちは、初めまして。あなたの名前はなんですか？これは音声合成モデルから作られた音声です。
 
 Prompt Audio (from [JSUT](https://sites.google.com/site/shinnosuketakamichi/publication/jsut))
 
-Korean Text:
-
-Prompt Audio (from [KSS](https://www.kaggle.com/datasets/bryanpark/korean-single-speaker-speech-dataset))
-
-https://github.com/seastar105/pflow-encodec/assets/30820469/fbad834c-8c64-4818-9767-3c4c9a9b11ed
+https://github.com/seastar105/pflow-encodec/assets/30820469/fb4f1a10-fb8b-413e-8bec-d1d0f58d8423
 
 Generated Audio
 
-https://github.com/seastar105/pflow-encodec/assets/30820469/e6de1178-786a-4143-9c80-ca1f1ac8c2c6
+https://github.com/seastar105/pflow-encodec/assets/30820469/137d4e34-f674-4681-a652-93c4a44f4554
+
+Korean Text: 백남준은 미디어 아트의 개척자로서 다양한 테크놀로지를 이용하여 실험적이고 창의적으로 작업했다.
+
+Prompt Audio (from [KSS](https://www.kaggle.com/datasets/bryanpark/korean-single-speaker-speech-dataset))
+
+https://github.com/seastar105/pflow-encodec/assets/30820469/db3435d0-8e8f-45ef-b3b3-a164ad316d71
+
+Generated Audio
+
+https://github.com/seastar105/pflow-encodec/assets/30820469/8dff38ec-a2d7-49a6-80fb-de6012b33a1b
 
 # Environment Setup
 
