@@ -268,7 +268,7 @@ class PFlow(nn.Module):
         text_tokens,
         prompts,
         durations=None,
-        nfe: int = 16,
+        n_steps: int = 16,
         ode_method: str = "midpoint",
         cfg_scale: float = 1.0,
         upscale_ratio: float = 1.5,
@@ -298,7 +298,7 @@ class PFlow(nn.Module):
 
             return v
 
-        times = torch.linspace(0, 1, nfe).to(h.device)
+        times = torch.linspace(0, 1, n_steps + 1).to(h.device)
         x0 = torch.randn_like(h)
         traj = torchdiffeq.odeint(sample_fn, x0, times, atol=1e-4, rtol=1e-4, method=ode_method)
         return traj[-1]

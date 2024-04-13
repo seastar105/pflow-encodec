@@ -26,7 +26,7 @@ Generated Audio
 
 English Text:
 
-Prompt Audio (from [LJSpeech](https://keithito.com/LJ-Speech-Dataset/))
+Prompt Audio (from [LibriTTS-R](https://www.openslr.org/141/))
 
 Generated Audio
 
@@ -183,12 +183,12 @@ trainer:
 
 # Pre-trained models
 
-| Language          | Weights                                                                       | Model Card |
-| ----------------- | ----------------------------------------------------------------------------- | ---------- |
-| MultiLingual(EJK) | [🤗 Hub](https://huggingface.co/seastar105/pflow-encodec-ejk)                  | [Link](https://github.com/seastar105/pflow-encodec/blob/main/MODEL_CARD.md)           |
-| English           | [🤗 Hub](https://huggingface.co/seastar105/pflow-encodec-libritts)             |            |
-| Japanese          | [🤗 Hub](https://huggingface.co/seastar105/pflow-encodec-aihub-libri-japanese) |            |
-| Korean            | [🤗 Hub](https://huggingface.co/seastar105/pflow-encodec-aihub-libri-korean)   |            |
+| Language          | Weights                                                                       | Model Card                                                                  |
+| ----------------- | ----------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| MultiLingual(EJK) | [🤗 Hub](https://huggingface.co/seastar105/pflow-encodec-ejk)                  | [Link](https://github.com/seastar105/pflow-encodec/blob/main/MODEL_CARD.md) |
+| English           | [🤗 Hub](https://huggingface.co/seastar105/pflow-encodec-libritts)             |                                                                             |
+| Japanese          | [🤗 Hub](https://huggingface.co/seastar105/pflow-encodec-aihub-libri-japanese) |                                                                             |
+| Korean            | [🤗 Hub](https://huggingface.co/seastar105/pflow-encodec-aihub-libri-korean)   |                                                                             |
 
 # TODO
 
