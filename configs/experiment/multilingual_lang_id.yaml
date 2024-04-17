@@ -1,0 +1,44 @@
+# @package _global_
+
+defaults:
+  - override /data: multilingual_lang_id.yaml
+  - override /model: pflow_small.yaml
+  - override /callbacks: default.yaml
+  - override /trainer: gpu.yaml
+  - override /logger: tensorboard.yaml
+
+task_name: pflow
+tags: ["pflow"]
+seed: 998244353
+test: False
+
+data:
+  batch_durations: 300.0
+  num_workers: 12
+callbacks:
+  val_checkpoint:
+    filename: "val_latent_loss_{val/latent_loss:.4f}-{step:06d}"
+    monitor: val/latent_loss
+    mode: "min"
+model:
+  net:
+    num_languages: 3
+    p_drop_lang: 0.1
+  scheduler:
+    total_steps: ${trainer.max_steps}
+    pct_start: 0.02
+  sample_freq: 5000
+  mean: ${data.mean}
+  std: ${data.std}
+  languages: ${data.languages}
+trainer:
+  max_steps: 250000
+  max_epochs: 10000 # arbitrary large number
+  precision: bf16-mixed
+  accumulate_grad_batches: 1
+  gradient_clip_val: 1.0
+  num_nodes: 1
+  devices: 1
+hydra:
+  run:
+    dir: ${paths.log_dir}/${task_name}/runs/multilingual_lang_id_small_bs300

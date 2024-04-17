@@ -1,13 +1,15 @@
 import os
-from typing import List
+from typing import List, Optional
 
 import lightning as L
-import numpy as np
 import torch
 from torch.utils.data import DataLoader
 
 from pflow_encodec.data.sampler import DistributedBucketSampler
-from pflow_encodec.data.text_latent_dur_dataset import TextLatentDataset
+from pflow_encodec.data.text_latent_dur_dataset import (
+    TextLatentDataset,
+    TextLatentLangDataset,
+)
 
 
 class TextLatentLightningDataModule(L.LightningDataModule):
@@ -26,6 +28,8 @@ class TextLatentLightningDataModule(L.LightningDataModule):
         text2latent_rate: float = 1.5,
         mean: float = -0.5444963574409485,
         std: float = 5.242217063903809,
+        use_lang_id: bool = False,
+        languages: Optional[List[str]] = None,
     ):
         super().__init__()
         self.train_tsv_path = train_tsv_path
@@ -43,17 +47,24 @@ class TextLatentLightningDataModule(L.LightningDataModule):
         self.boundaries = boundaries
         self.num_workers = num_workers
         self.return_upsampled = return_upsampled
+        # do not use return_upsampled
+        assert not self.return_upsampled, "return_upsampled is not supported"
 
         self.max_frame = max_frame
         self.text2latent_rate = text2latent_rate
 
         self.mean = mean
         self.std = std
+        self.use_lang_id = use_lang_id
+        if languages is not None:
+            self.languages = languages
+            self.lang2idx = {lang: idx for idx, lang in enumerate(languages)}
 
     def setup(self, stage: str):
         if stage != "fit":
             raise ValueError(f"Stage {stage} is not supported")
-        self.train_ds = TextLatentDataset(
+        dataset_cls = TextLatentLangDataset if self.use_lang_id else TextLatentDataset
+        self.train_ds = dataset_cls(
             self.train_tsv_path,
             add_trailing_silence=self.add_trailing_silence,
             mean=self.mean,
@@ -61,7 +72,7 @@ class TextLatentLightningDataModule(L.LightningDataModule):
             min_duration=self.min_duration,
             max_duration=self.max_duration,
         )
-        self.val_ds = TextLatentDataset(
+        self.val_ds = dataset_cls(
             self.val_tsv_path,
             add_trailing_silence=self.add_trailing_silence,
             mean=self.mean,
@@ -79,75 +90,47 @@ class TextLatentLightningDataModule(L.LightningDataModule):
             raise FileNotFoundError(f"File {self.val_tsv_path} does not exist")
 
     def _collate(self, batch):
-        text_tokens, durations, latents = map(list, zip(*batch))
-        if self.return_upsampled:
-            # used for training AudioModel
-            for t, d in zip(text_tokens, durations):
-                if t.shape[-1] != d.shape[-1]:
-                    raise ValueError(f"Text token and duration shape mismatch: {t.shape} != {d.shape}")
-            text_tokens = [torch.repeat_interleave(t, d.squeeze(), dim=1) for t, d in zip(text_tokens, durations)]
-
-            # truncate if there's sample over max_frame
-            for i in range(t.shape[0]):
-                seq_len = latents[i].shape[-2]
-                if seq_len <= self.max_frame:
-                    continue
-                start_idx = np.random.randint(0, seq_len - self.max_frame)
-                latent = latents[i][:, start_idx : start_idx + self.max_frame, :]
-
-                text_start_idx = max(0, int(start_idx / self.text2latent_rate))
-                text_frame_len = int(self.max_frame / self.text2latent_rate)
-                text_token = text_tokens[i][:, text_start_idx : text_start_idx + text_frame_len]
-
-                latents[i] = latent
-                text_tokens[i] = text_token
-
-            max_text_len = max(t.shape[-1] for t in text_tokens)
-            text_token_lens = torch.tensor([t.shape[-1] for t in text_tokens])
-            text_tokens = torch.cat(
-                [torch.nn.functional.pad(t, (0, max_text_len - t.shape[-1]), value=self.pad_idx) for t in text_tokens],
-                dim=0,
-            )
-
-            max_latent_len = max(latent.shape[-2] for latent in latents)
-            latent_lens = torch.tensor([latent.shape[-2] for latent in latents])
-            latents = torch.cat(
-                [
-                    torch.nn.functional.pad(latent, (0, 0, 0, max_latent_len - latent.shape[-2]), value=0)
-                    for latent in latents
-                ],
-                dim=0,
-            )
-            return text_tokens, text_token_lens, latents, latent_lens
+        result = {}
+        if self.use_lang_id:
+            text_tokens, durations, latents, languages = map(list, zip(*batch))
+            lang_ids = torch.stack([torch.tensor(self.lang2idx[lang]) for lang in languages])
+            result["lang_ids"] = lang_ids
         else:
-            # used for training AudioModel
-            for t, d in zip(text_tokens, durations):
-                if t.shape[-1] != d.shape[-1]:
-                    raise ValueError(f"Text token and duration shape mismatch: {t.shape} != {d.shape}")
-            max_text_len = max(t.shape[-1] for t in text_tokens)
-            text_token_lens = torch.tensor([t.shape[-1] for t in text_tokens])
-            text_tokens = torch.cat(
-                [torch.nn.functional.pad(t, (0, max_text_len - t.shape[-1]), value=self.pad_idx) for t in text_tokens],
-                dim=0,
-            )
+            text_tokens, durations, latents = map(list, zip(*batch))
+        # used for training AudioModel
+        for t, d in zip(text_tokens, durations):
+            if t.shape[-1] != d.shape[-1]:
+                raise ValueError(f"Text token and duration shape mismatch: {t.shape} != {d.shape}")
+        max_text_len = max(t.shape[-1] for t in text_tokens)
+        text_token_lens = torch.tensor([t.shape[-1] for t in text_tokens])
+        text_tokens = torch.cat(
+            [torch.nn.functional.pad(t, (0, max_text_len - t.shape[-1]), value=self.pad_idx) for t in text_tokens],
+            dim=0,
+        )
 
-            max_duration_len = max(d.shape[-1] for d in durations)
-            duration_lens = torch.tensor([d.shape[-1] for d in durations])
-            durations = torch.cat(
-                [torch.nn.functional.pad(d, (0, max_duration_len - d.shape[-1]), value=0) for d in durations],
-                dim=0,
-            )
+        max_duration_len = max(d.shape[-1] for d in durations)
+        duration_lens = torch.tensor([d.shape[-1] for d in durations])
+        durations = torch.cat(
+            [torch.nn.functional.pad(d, (0, max_duration_len - d.shape[-1]), value=0) for d in durations],
+            dim=0,
+        )
 
-            max_latent_len = max(latent.shape[-2] for latent in latents)
-            latent_lens = torch.tensor([latent.shape[-2] for latent in latents])
-            latents = torch.cat(
-                [
-                    torch.nn.functional.pad(latent, (0, 0, 0, max_latent_len - latent.shape[-2]), value=0)
-                    for latent in latents
-                ],
-                dim=0,
-            )
-            return text_tokens, text_token_lens, durations, duration_lens, latents, latent_lens
+        max_latent_len = max(latent.shape[-2] for latent in latents)
+        latent_lens = torch.tensor([latent.shape[-2] for latent in latents])
+        latents = torch.cat(
+            [
+                torch.nn.functional.pad(latent, (0, 0, 0, max_latent_len - latent.shape[-2]), value=0)
+                for latent in latents
+            ],
+            dim=0,
+        )
+        result["text_tokens"] = text_tokens
+        result["text_token_lens"] = text_token_lens
+        result["durations"] = durations
+        result["duration_lens"] = duration_lens
+        result["latents"] = latents
+        result["latent_lens"] = latent_lens
+        return result
 
     def train_dataloader(self):
         world_size = 1 if not torch.distributed.is_initialized() else None

@@ -100,11 +100,14 @@ class TextEncoder(nn.Module):
         text_tokens: torch.Tensor,
         spk_emb: torch.Tensor,
         padding_mask: Optional[torch.Tensor] = None,
+        lang_emb: Optional[torch.Tensor] = None,
     ):
         x = self.input_proj(self.text_emb(text_tokens))
         x = x + self.conv_pos(x, padding_mask)
 
         cond = spk_emb
+        if lang_emb is not None:
+            cond = spk_emb + lang_emb
         cond_input = dict()
         if self.norm_type == "ada_proj":
             cond_input["attn_norm_cond"] = cond

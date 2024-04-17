@@ -1,0 +1,78 @@
+_target_: pflow_encodec.models.lightning_modules.pflow.PFlowLightningModule
+
+net:
+  _target_: pflow_encodec.models.pflow.PFlow
+  feature_dim: 128
+  text_encoder_vocab_size: 10904
+  text_encoder_embed_dim: 192
+  text_encoder_conv_pos_depth: 2
+  text_encoder_conv_pos_kernel_size: 15
+  text_encoder_conv_pos_groups: 16
+  text_encoder_depth: 4
+  text_encoder_dim: 192
+  text_encoder_dim_head: 96
+  text_encoder_heads: 2
+  text_encoder_ff_mult: 4.0
+  text_encoder_attn_dropout: 0.1
+  text_encoder_ff_dropout: 0.0
+  text_encoder_attn_processor: naive
+  text_encoder_norm_type: ada_proj
+  text_encoder_ff_type: conv
+  text_encoder_ff_kernel_size: 3
+  text_encoder_ff_groups: 1
+  text_encoder_scale_type: ada_proj
+  speaker_encoder_dim_input: 128
+  speaker_encoder_conv_pos_depth: 2
+  speaker_encoder_conv_pos_kernel_size: 15
+  speaker_encoder_conv_pos_groups: 16
+  speaker_encoder_depth: 2
+  speaker_encoder_dim: 256
+  speaker_encoder_dim_head: 96
+  speaker_encoder_heads: 2
+  speaker_encoder_ff_mult: 4.0
+  speaker_encoder_attn_dropout: 0.1
+  speaker_encoder_ff_dropout: 0.0
+  speaker_encoder_attn_processor: naive
+  speaker_encoder_norm_type: layer
+  speaker_encoder_ff_type: conv
+  speaker_encoder_ff_kernel_size: 3
+  speaker_encoder_ff_groups: 1
+  speaker_encoder_scale_type: none
+  flow_matching_dim_time: 2048
+  flow_matching_conv_pos_kernel_size: 31
+  flow_matching_conv_pos_depth: 2
+  flow_matching_conv_pos_groups: 16
+  flow_matching_depth: 4
+  flow_matching_dim: 256
+  flow_matching_dim_head: 64
+  flow_matching_heads: 4
+  flow_matching_ff_mult: 4.0
+  flow_matching_attn_dropout: 0.1
+  flow_matching_ff_dropout: 0.0
+  flow_matching_attn_processor: naive
+  flow_matching_norm_type: ada_embed
+  flow_matching_ff_type: conv
+  flow_matching_ff_kernel_size: 3
+  flow_matching_ff_groups: 2
+  flow_matching_scale_type: ada_embed
+  duration_predictor_dim: 256
+  duration_predictor_depth: 2
+  duration_predictor_kernel_size: 3
+  duration_predictor_dropout: 0.1
+  p_uncond: 0.1
+  interpolate_mode: linear
+  sigma: 0.01 # from pflow paper
+optimizer:
+  _target_: torch.optim.Adam
+  lr: 0.0001
+scheduler:
+  _target_: torch.optim.lr_scheduler.OneCycleLR
+  max_lr: 0.0001
+  anneal_strategy: linear
+  total_steps: ???
+  pct_start: ???
+sample_freq: 2000
+sample_idx: [0, 1000, 2000, 3000, 4000, 5000]
+mean: ???
+std: ???
+text2latent_ratio: 1.5

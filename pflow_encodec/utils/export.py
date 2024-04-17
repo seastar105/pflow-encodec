@@ -13,6 +13,10 @@ def export_lightning_ckpt(input_path, output_path):
     data_config["mean"] = cfg["mean"]
     data_config["std"] = cfg["std"]
     data_config["text2latent_ratio"] = cfg["text2latent_ratio"]
+    if "languages" in cfg:
+        languages = cfg["languages"]
+        lang2idx = {lang: idx for idx, lang in enumerate(languages)}
+        data_config["lang2idx"] = lang2idx
     state_dict = {k[len("net.") :]: v for k, v in state_dict.items()}
 
     model = hydra.utils.instantiate(model_config)

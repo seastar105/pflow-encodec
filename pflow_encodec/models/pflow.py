@@ -9,6 +9,7 @@ from einops import rearrange
 from pflow_encodec.modules import (
     DurationPredictor,
     FlowMatchingTransformer,
+    GradientReversal,
     SpeakerEncoder,
     TextEncoder,
 )
@@ -77,6 +78,8 @@ class PFlow(nn.Module):
         p_uncond: float = 0.1,
         interpolate_mode: str = "linear",
         sigma: float = 0.01,  # from pflow paper
+        num_languages: int = 0,
+        p_drop_lang: float = 0.2,
     ):
         super().__init__()
 
@@ -153,12 +156,19 @@ class PFlow(nn.Module):
             kernel_size=duration_predictor_kernel_size,
             dropout=duration_predictor_dropout,
         )
+        if num_languages > 0:
+            self.lang_emb = nn.Embedding(num_languages + 1, speaker_encoder_dim, padding_idx=num_languages)
+            self.lang_head = nn.Sequential(GradientReversal(1.0), nn.Linear(speaker_encoder_dim, num_languages))
 
         self.reset_parameters()
 
         self.p_uncond = p_uncond
         self.interpolate_mode = interpolate_mode
         self.sigma = sigma
+
+        if num_languages > 0:
+            self.num_languages = num_languages
+            self.p_drop_lang = p_drop_lang
 
     def reset_parameters(self):
         def default_init(m):
@@ -227,12 +237,32 @@ class PFlow(nn.Module):
         return h
 
     def forward(
-        self, text_tokens, text_token_lens, durations, duration_lens, latents, latent_lens, prompts, prompt_masks
+        self,
+        text_tokens,
+        text_token_lens,
+        durations,
+        duration_lens,
+        latents,
+        latent_lens,
+        prompts,
+        prompt_masks,
+        lang_ids=None,
     ):
         # text encoder, speaker encoder
         spk_emb = self.spk_encoder(prompts)
         text_padding_mask = self.length_to_attn_mask(text_token_lens)
-        h, text_emb = self.text_encoder(text_tokens=text_tokens, spk_emb=spk_emb, padding_mask=text_padding_mask)
+        lang_emb = None
+        lang_loss = None
+        if lang_ids is not None:
+            lang_loss = F.cross_entropy(self.lang_head(spk_emb).squeeze(1), lang_ids)
+            if self.training:
+                batch_size = lang_ids.shape[0]
+                lang_drop_mask = torch.rand((batch_size,)).to(lang_ids.device) < self.p_drop_lang
+                lang_ids[lang_drop_mask] = self.num_languages
+            lang_emb = self.lang_emb(lang_ids).unsqueeze(1)
+        h, text_emb = self.text_encoder(
+            text_tokens=text_tokens, spk_emb=spk_emb, lang_emb=lang_emb, padding_mask=text_padding_mask
+        )
 
         # duration predictor
         duration_pred = self.duration_predictor(text_emb.detach(), text_padding_mask)
@@ -260,7 +290,7 @@ class PFlow(nn.Module):
         loss_mask = ~prompt_masks & latent_padding_mask
         flow_matching_loss = F.mse_loss(vt[loss_mask], flow[loss_mask])
 
-        return duration_loss, enc_loss, flow_matching_loss
+        return duration_loss, enc_loss, flow_matching_loss, lang_loss
 
     @torch.no_grad()
     def generate(
@@ -272,10 +302,14 @@ class PFlow(nn.Module):
         ode_method: str = "midpoint",
         cfg_scale: float = 1.0,
         upscale_ratio: float = 1.5,
+        lang_ids=None,
     ):
         assert text_tokens.shape[0] == 1, "generation with batch size > 1 is not supported yet"
         spk_emb = self.spk_encoder(prompts)
-        h, text_emb = self.text_encoder(text_tokens=text_tokens, spk_emb=spk_emb)
+        lang_emb = None
+        if lang_ids is not None:
+            lang_emb = self.lang_emb(lang_ids).unsqueeze(1)
+        h, text_emb = self.text_encoder(text_tokens=text_tokens, spk_emb=spk_emb, lang_emb=lang_emb)
 
         if durations is None:
             duration_pred = self.duration_predictor(text_emb.detach())

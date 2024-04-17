@@ -1,4 +1,5 @@
 from pflow_encodec.modules.duration_predictor import DurationPredictor
 from pflow_encodec.modules.flow_matching import FlowMatchingTransformer
+from pflow_encodec.modules.grl import GradientReversal
 from pflow_encodec.modules.spk_enc import SpeakerEncoder
 from pflow_encodec.modules.text_enc import TextEncoder
