@@ -4,7 +4,7 @@ Implementation of TTS based on paper [P-Flow: A Fast and Data-Efficient Zero-Sho
 
 # Main goal of this project
 
-I have two goals to achieve in this project. It seems work but, really poor at Japanese and numbers. 
+I have two goals to achieve in this project. It seems work but, really poor at Japanese and numbers.
 
 - First, I want to test character-based input with [SeamlessM4T](https://arxiv.org/abs/2308.11596)'s [Aligner](https://github.com/facebookresearch/seamless_communication/blob/main/docs/m4t/unity2_aligner_README.md) for English, Korean, Japanese and other languages. but, mainly for three languages mentioned above.
 - Second, zero-shot multilingual TTS model. since this model will be trained with sentencepiece tokenizer input, it does not need phonemizer. so, it would be easily adapted to other languages tokenizer supports. check out supported languages of tokenizer [here](https://github.com/facebookresearch/seamless_communication/blob/main/src/seamless_communication/cards/nar_t2u_aligner.yaml)
@@ -140,7 +140,7 @@ std: <std>
 
 fill `<train_tsv_path>`, `<val_tsv_path>`, `<mean>`, and `<std>` with your dataset's meta path and mean/std values.
 
-then, create config in `configs/experiment/new_dataset.yaml`.
+then, create config in `configs/experiment/new_dataset.yaml` based on `configs/experiment/default.yaml`.
 
 ```yaml
 # @package _global_
@@ -167,6 +167,7 @@ model:
     total_steps: ${trainer.max_steps}
     pct_start: 0.02
   sample_freq: 5000
+  sample_idx: []  # sample indices used for sampling while train. idx will be used to choose samples from validation dataset. so this value should not be greater than len(val_dataset)
   mean: ${data.mean}
   std: ${data.std}
 trainer:
