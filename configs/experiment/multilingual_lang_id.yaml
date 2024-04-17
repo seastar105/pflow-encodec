@@ -31,6 +31,7 @@ model:
   mean: ${data.mean}
   std: ${data.std}
   languages: ${data.languages}
+  lang_loss_weight: 0.01
 trainer:
   max_steps: 250000
   max_epochs: 10000 # arbitrary large number
@@ -39,6 +40,7 @@ trainer:
   gradient_clip_val: 1.0
   num_nodes: 1
   devices: 1
+  detect_anomaly: True
 hydra:
   run:
     dir: ${paths.log_dir}/${task_name}/runs/multilingual_lang_id_small_bs300

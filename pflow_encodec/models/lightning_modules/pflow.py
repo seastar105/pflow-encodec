@@ -28,6 +28,7 @@ class PFlowLightningModule(L.LightningModule):
         text2latent_ratio: float = 1.5,
         net_ckpt_path: Optional[str] = None,
         languages: Optional[List[str]] = None,
+        lang_loss_weight: float = 0.0,
     ):
         super().__init__()
         self.save_hyperparameters(logger=False)
@@ -54,6 +55,7 @@ class PFlowLightningModule(L.LightningModule):
         if languages is not None:
             self.languages = languages
             self.lang2idx = {lang: idx for idx, lang in enumerate(languages)}
+            self.lang_loss_weight = lang_loss_weight
 
         if net_ckpt_path is not None:
             logger.info(f"Loading model from {net_ckpt_path}")
@@ -155,11 +157,12 @@ class PFlowLightningModule(L.LightningModule):
         self.log(
             "train/latent_loss", enc_loss + flow_matching_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True
         )
-        if lang_loss is not None:
-            self.log("train/lang_loss", lang_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
-
         loss = enc_loss + duration_loss + flow_matching_loss
         self.log("train/loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+
+        if lang_loss is not None:
+            self.log("train/lang_loss", lang_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+            loss = loss + lang_loss * self.lang_loss_weight
 
         if self.global_step % self.sample_freq == 0:
             self.log_audio()
@@ -196,11 +199,12 @@ class PFlowLightningModule(L.LightningModule):
         self.log(
             "val/latent_loss", enc_loss + flow_matching_loss, on_step=False, on_epoch=True, prog_bar=True, logger=True
         )
-        if lang_loss is not None:
-            self.log("val/lang_loss", lang_loss, on_step=False, on_epoch=True, prog_bar=True, logger=True)
-
         loss = enc_loss + duration_loss + flow_matching_loss
         self.log("val/loss", loss, on_step=False, on_epoch=True, prog_bar=True, logger=True)
+
+        if lang_loss is not None:
+            self.log("val/lang_loss", lang_loss, on_step=False, on_epoch=True, prog_bar=True, logger=True)
+            loss = loss + lang_loss * self.lang_loss_weight
 
         return loss
 
