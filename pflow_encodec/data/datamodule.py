@@ -58,12 +58,16 @@ class TextLatentLightningDataModule(L.LightningDataModule):
         self.use_lang_id = use_lang_id
         if languages is not None:
             self.languages = languages
-            self.lang2idx = {lang: idx for idx, lang in enumerate(languages)}
 
     def setup(self, stage: str):
         if stage != "fit":
             raise ValueError(f"Stage {stage} is not supported")
         dataset_cls = TextLatentLangDataset if self.use_lang_id else TextLatentDataset
+        aux_dict = {}
+        if self.use_lang_id:
+            if self.languages is None:
+                raise ValueError("languages must be provided when use_lang_id is True")
+            aux_dict["languages"] = self.languages
         self.train_ds = dataset_cls(
             self.train_tsv_path,
             add_trailing_silence=self.add_trailing_silence,
@@ -71,6 +75,7 @@ class TextLatentLightningDataModule(L.LightningDataModule):
             std=self.std,
             min_duration=self.min_duration,
             max_duration=self.max_duration,
+            **aux_dict,
         )
         self.val_ds = dataset_cls(
             self.val_tsv_path,
@@ -79,6 +84,7 @@ class TextLatentLightningDataModule(L.LightningDataModule):
             std=self.std,
             min_duration=self.min_duration,
             max_duration=self.max_duration,
+            **aux_dict,
         )
 
         self.pad_idx = self.train_ds.tokenizer.pad_idx
@@ -93,7 +99,7 @@ class TextLatentLightningDataModule(L.LightningDataModule):
         result = {}
         if self.use_lang_id:
             text_tokens, durations, latents, languages = map(list, zip(*batch))
-            lang_ids = torch.stack([torch.tensor(self.lang2idx[lang]) for lang in languages])
+            lang_ids = torch.stack([lang for lang in languages])
             result["lang_ids"] = lang_ids
         else:
             text_tokens, durations, latents = map(list, zip(*batch))

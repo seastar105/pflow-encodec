@@ -37,9 +37,6 @@ from pflow_encodec.utils import (
 )
 
 log = RankedLogger(__name__, rank_zero_only=True)
-torch.set_float32_matmul_precision("medium")
-torch.backends.cuda.matmul.allow_tf32 = True
-torch.backends.cudnn.allow_tf32 = True
 
 
 @task_wrapper
@@ -53,6 +50,10 @@ def train(cfg: DictConfig) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     :return: A tuple with metrics and dict with all instantiated objects.
     """
     # set seed for random number generators in pytorch, numpy and python.random
+    torch.set_float32_matmul_precision("high")
+    torch.backends.cuda.matmul.allow_tf32 = True
+    torch.backends.cudnn.allow_tf32 = True
+
     if cfg.get("seed"):
         L.seed_everything(cfg.seed, workers=True)
 

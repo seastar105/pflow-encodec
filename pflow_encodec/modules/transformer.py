@@ -102,12 +102,17 @@ class FeedForward(nn.Module):
     def __init__(self, dim: int, mult: float, dropout: float = 0.0):
         super().__init__()
         intermediate_dim = int(dim * mult * 2 / 3)
-        self.net = nn.Sequential(
-            nn.Linear(dim, intermediate_dim * 2), GEGLU(), nn.Dropout(dropout), nn.Linear(intermediate_dim, dim)
-        )
+        self.proj1 = nn.Linear(dim, 2 * intermediate_dim)
+        self.act = GEGLU()
+        self.dropout = nn.Dropout(dropout)
+        self.proj2 = nn.Linear(intermediate_dim, dim)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.net(x)
+        x = self.proj1(x)
+        x = self.act(x)
+        x = self.dropout(x)
+        x = self.proj2(x)
+        return x
 
 
 class MultiHeadAttention(nn.Module):

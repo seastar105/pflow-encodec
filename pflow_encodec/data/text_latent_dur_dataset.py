@@ -84,6 +84,7 @@ class TextLatentLangDataset(Dataset):
         std: float = 1.0,
         min_duration: float = 3.0,
         max_duration: float = 15.0,
+        languages: list[str] = None,
     ):
         df = pd.read_csv(tsv_path, sep="\t", engine="pyarrow")
         df = df[df["duration"] >= min_duration]
@@ -99,6 +100,9 @@ class TextLatentLangDataset(Dataset):
 
         self.mean = mean
         self.std = std
+
+        if languages is not None:
+            self.lang2idx = {lang: idx for idx, lang in enumerate(languages)}
 
     def __len__(self):
         return len(self.paths)
@@ -126,5 +130,6 @@ class TextLatentLangDataset(Dataset):
         latent = (latent - self.mean) / self.std
 
         language = self.languages[idx]
+        lang_id = torch.tensor(self.lang2idx[language])
 
-        return text_tokens, duration, latent, language
+        return text_tokens, duration, latent, lang_id

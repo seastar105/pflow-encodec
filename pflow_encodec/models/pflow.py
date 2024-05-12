@@ -254,16 +254,13 @@ class PFlow(nn.Module):
         lang_emb = None
         lang_loss = None
         if lang_ids is not None:
-            lang_logits = self.lang_head(spk_emb).squeeze(1)
-            lang_loss = F.cross_entropy(lang_logits, lang_ids)
             if self.training:
+                lang_logits = self.lang_head(spk_emb).squeeze(1)
+                lang_loss = F.cross_entropy(lang_logits, lang_ids)
                 batch_size = lang_ids.shape[0]
                 lang_drop_mask = torch.rand((batch_size,)).to(lang_ids.device) < self.p_drop_lang
-                dropped_lang_ids = lang_ids.clone()
-                dropped_lang_ids[lang_drop_mask] = self.num_languages
-                lang_emb = self.lang_emb(dropped_lang_ids).unsqueeze(1)
-            else:
-                lang_emb = self.lang_emb(lang_ids).unsqueeze(1)
+                lang_ids = lang_ids * ~lang_drop_mask
+            lang_emb = self.lang_emb(lang_ids).unsqueeze(1)
         h, text_emb = self.text_encoder(
             text_tokens=text_tokens, spk_emb=spk_emb, lang_emb=lang_emb, padding_mask=text_padding_mask
         )

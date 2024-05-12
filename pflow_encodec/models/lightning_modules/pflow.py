@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Any, List, Mapping, Optional
 
 import hydra
 import lightning as L
@@ -28,7 +28,7 @@ class PFlowLightningModule(L.LightningModule):
         text2latent_ratio: float = 1.5,
         net_ckpt_path: Optional[str] = None,
         languages: Optional[List[str]] = None,
-        lang_loss_weight: float = 0.0,
+        max_lang_loss: Optional[float] = None,
     ):
         super().__init__()
         self.save_hyperparameters(logger=False)
@@ -55,7 +55,7 @@ class PFlowLightningModule(L.LightningModule):
         if languages is not None:
             self.languages = languages
             self.lang2idx = {lang: idx for idx, lang in enumerate(languages)}
-            self.lang_loss_weight = lang_loss_weight
+            self.max_lang_loss = max_lang_loss
 
         if net_ckpt_path is not None:
             logger.info(f"Loading model from {net_ckpt_path}")
@@ -161,8 +161,8 @@ class PFlowLightningModule(L.LightningModule):
         self.log("train/loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
 
         if lang_loss is not None:
+            # just for check
             self.log("train/lang_loss", lang_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
-            loss = loss + lang_loss * self.lang_loss_weight
 
         if self.global_step % self.sample_freq == 0:
             self.log_audio()
@@ -203,8 +203,8 @@ class PFlowLightningModule(L.LightningModule):
         self.log("val/loss", loss, on_step=False, on_epoch=True, prog_bar=True, logger=True)
 
         if lang_loss is not None:
-            self.log("val/lang_loss", lang_loss, on_step=False, on_epoch=True, prog_bar=True, logger=True)
-            loss = loss + lang_loss * self.lang_loss_weight
+            # just for check
+            self.log("train/lang_loss", lang_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
 
         return loss
 
@@ -243,12 +243,12 @@ class PFlowLightningModule(L.LightningModule):
                 lang_id = None
             else:
                 text_token, duration, latent, lang = sample
-                lang_id = torch.tensor([self.lang2idx[lang]], device=self.device)
+                lang_id = lang.unsqueeze(0).to(self.device)
             start_idx = torch.randint(0, latent.shape[-2] - self.prompt_length, (1,))
             prompt = latent[:, start_idx : start_idx + self.prompt_length]
             sampled = self.net.generate(
                 text_token.to(self.device),
-                prompt.to(self.device),
+                prompt.to(device=self.device, dtype=self.dtype),
                 duration.to(self.device),
                 upscale_ratio=self.text2latent_ratio,
                 lang_ids=lang_id,
@@ -263,12 +263,12 @@ class PFlowLightningModule(L.LightningModule):
                 lang_id = None
             else:
                 text_token, duration, latent, lang = sample
-                lang_id = torch.tensor([self.lang2idx[lang]], device=self.device)
+                lang_id = lang.unsqueeze(0).to(self.device)
             start_idx = torch.randint(0, latent.shape[-2] - self.prompt_length, (1,))
             prompt = latent[:, start_idx : start_idx + self.prompt_length]
             sampled = self.net.generate(
                 text_token.to(self.device),
-                prompt.to(self.device),
+                prompt.to(device=self.device, dtype=self.dtype),
                 upscale_ratio=self.text2latent_ratio,
                 lang_ids=lang_id,
             )

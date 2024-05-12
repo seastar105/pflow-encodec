@@ -27,10 +27,12 @@ class TimestepEmbedder(nn.Module):
         )
 
     def forward(self, t: torch.Tensor):
+        dtype = self.freqs.dtype
         args = t[:, None].float() * self.freqs[None]
         embedding = torch.cat([torch.cos(args), torch.sin(args)], dim=-1)
         if self.dim % 2:
             embedding = torch.cat([embedding, torch.zeros_like(embedding[:, :1])], dim=-1)
+        embedding = embedding.to(dtype=dtype)
         return self.net(embedding)
 
 
