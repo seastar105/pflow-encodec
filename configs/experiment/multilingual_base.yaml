@@ -27,15 +27,15 @@ model:
   sample_freq: 5000
   mean: ${data.mean}
   std: ${data.std}
-  net_ckpt_path: /home/seastar105/Work/pflow-encodec/checkpoints/multilingual_base.ckpt
+  # net_ckpt_path: /home/seastar105/Work/pflow-encodec/checkpoints/multilingual_base.ckpt
 trainer:
   max_steps: 500000
   max_epochs: 10000 # arbitrary large number
   precision: bf16-mixed
-  accumulate_grad_batches: 4
+  accumulate_grad_batches: 1
   gradient_clip_val: 0.2
   num_nodes: 1
   devices: 1
 hydra:
   run:
-    dir: ${paths.log_dir}/${task_name}/runs/multilingual_base_bs100x4
+    dir: ${paths.log_dir}/${task_name}/runs/multilingual_base_bs100x4_test

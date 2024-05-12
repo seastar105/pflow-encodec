@@ -42,7 +42,7 @@ net:
   flow_matching_conv_pos_kernel_size: 31
   flow_matching_conv_pos_depth: 2
   flow_matching_conv_pos_groups: 16
-  flow_matching_depth: 4
+  flow_matching_depth: 8
   flow_matching_dim: 256
   flow_matching_dim_head: 64
   flow_matching_heads: 4
